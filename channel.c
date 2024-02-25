@@ -2,29 +2,31 @@
 
 // Creates a new channel with the provided size and returns it to the caller
 channel_t* channel_create(size_t size)
-{printf("created\n");
+{
     //make the buffer
     buffer_t* buffer;
     buffer = buffer_create(size);
 
     pthread_mutex_t my_mutex ;
-    //int mutex_status; 
-    pthread_mutex_init(&my_mutex, NULL);
+    int init_status = 0 ; 
+    init_status += pthread_mutex_init(&my_mutex, NULL);
     channel_t* channel_curr;
 
     pthread_cond_t empty_buff_signal; 
-    pthread_cond_init(&empty_buff_signal, NULL);
+    init_status += pthread_cond_init(&empty_buff_signal, NULL);
 
     pthread_cond_t full_signal;
-    pthread_cond_init(&full_signal, NULL);
+    init_status += pthread_cond_init(&full_signal, NULL);
     
     channel_curr = malloc(sizeof(channel_t));
+    
+    if (init_status == 0){
     channel_curr->buffer = buffer; 
     channel_curr->buffer_size = buffer->size;
     channel_curr->mutex = my_mutex; 
     channel_curr->empty_buff_signal = empty_buff_signal;
     channel_curr->full_buff_signal = full_signal;
-    channel_curr->closed_flag = 0; 
+    channel_curr->closed_flag = 0;} 
     //make 
     
 
@@ -40,18 +42,17 @@ channel_t* channel_create(size_t size)
 // GENERIC_ERROR on encountering any other generic error of any sort
 enum channel_status channel_send(channel_t *channel, void* data)
 {   
+    pthread_mutex_lock(&channel->mutex);
+
     if (channel->closed_flag == 1){
-        printf("this is closed\n");
+        pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
     
-    printf("not closed");
-    pthread_mutex_lock(&channel->mutex);
-    printf("locked mutex");
-
+    
+    
     while (channel->buffer->capacity == channel->buffer->size ) {
         pthread_cond_wait(&channel->full_buff_signal, &channel->mutex);
-        printf("stuck in loop\n");
     }
 
     
@@ -74,18 +75,22 @@ enum channel_status channel_send(channel_t *channel, void* data)
 // GENERIC_ERROR on encountering any other generic error of any sort
 enum channel_status channel_receive(channel_t* channel, void** data)
 {
+
+    
+    pthread_mutex_lock(&channel->mutex);
+    
+
     if (channel->closed_flag == 1){
-        printf("this is closed\n");
+        
+        pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
     
-    printf("not closed");
-    pthread_mutex_lock(&channel->mutex);
-    printf("locked mutex");
+    
 
     while (0 == channel->buffer->size ) {
         pthread_cond_wait(&channel->empty_buff_signal, &channel->mutex);
-        printf("stuck in loop\n");
+        
     }
 
     
@@ -111,15 +116,17 @@ enum channel_status channel_receive(channel_t* channel, void** data)
 enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 {
     /* IMPLEMENT THIS */
+    
+    pthread_mutex_lock(&channel->mutex);
+   
+
     if (channel->closed_flag == 1){
-        printf("this is closed\n");
+        
+        pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
     
-    printf("not closed");
-    pthread_mutex_lock(&channel->mutex);
-    printf("locked mutex");
-
+    
     if (channel->buffer->capacity == channel->buffer->size ) {
         pthread_mutex_unlock(&channel->mutex);
         return CHANNEL_FULL;
@@ -147,14 +154,17 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 enum channel_status channel_non_blocking_receive(channel_t* channel, void** data)
 {
     /* IMPLEMENT THIS */
+    
+    pthread_mutex_lock(&channel->mutex);
+
+   
     if (channel->closed_flag == 1){
-        printf("this is closed\n");
+        
+        pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
     
-    printf("not closed");
-    pthread_mutex_lock(&channel->mutex);
-    printf("locked mutex");
+    
 
     if (0 == channel->buffer->size ) {
         pthread_mutex_unlock(&channel->mutex);
@@ -238,5 +248,7 @@ enum channel_status channel_destroy(channel_t* channel)
 enum channel_status channel_select(select_t* channel_list, size_t channel_count, size_t* selected_index)
 {
     /* IMPLEMENT THIS */
+    // tff is this shit
+    
     return SUCCESS;
 }
